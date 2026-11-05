@@ -7,7 +7,7 @@
 بعد از اینکه ریپو روی گیت‌هاب است، فقط همین یک خط کافی است:
 
 ```bash
-git clone https://github.com/ali98afshari/keymouse.git && cd keymouse && ./install.sh
+git clone https://github.com/ali98afshari-star/keymouse.git && cd keymouse && ./install.sh
 ```
 
 یا فایل deb را از صفحه‌ی Releases بگیر و نصب کن:

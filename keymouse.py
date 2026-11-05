@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""keymouse — hold one key, move the mouse with the arrow keys (X11 / XFCE).
+"""keymouse — hold one key, move the mouse with arrow keys (X11 / XFCE).
 
 Ponytail note: the lazy option is X11 MouseKeys (numpad only, not arrows),
 and warpd/keynav are modal, not hold-a-key + arrows. Neither matches the
@@ -53,6 +53,7 @@ DEFAULT_CONFIG = """\
 # Alt_R, Super_R.  Control_R (right Ctrl) is the default: it is rarely
 # used by apps, and left Ctrl keeps working normally.
 # left/right/middle_click_key: keysym used for that button while held.
+# drag_key: separate key for drag (hold to drag, tap to click). Empty = use left_click_key.
 [mouse]
 modifier = Control_R
 base_speed = 6
@@ -65,6 +66,7 @@ scroll_ms = 120
 left_click_key = Return
 right_click_key = period
 middle_click_key = slash
+drag_key = 
 """
 
 # Fixed keys hijacked while the modifier is held: name -> keysym name.
@@ -111,6 +113,7 @@ def load_config(path):
         "left_click_key": m.get("left_click_key", "Return").strip() or "Return",
         "right_click_key": m.get("right_click_key", "period").strip() or "period",
         "middle_click_key": m.get("middle_click_key", "slash").strip() or "slash",
+        "drag_key": m.get("drag_key", "").strip() or "",
     }
 
 
@@ -123,12 +126,14 @@ def save_config(path, values):
         cfg.write(fh)
 
 
-def hijacked_keys(cfg):
+def _hijacked_keys(cfg):
     """Full hijacked-key map for this config (fixed keys + click keys)."""
     keys = dict(FIXED_KEYS)
     keys["left_click"] = cfg["left_click_key"]
     keys["right_click"] = cfg["right_click_key"]
     keys["middle_click"] = cfg["middle_click_key"]
+    if cfg["drag_key"]:
+        keys["drag"] = cfg["drag_key"]
     return keys
 
 
@@ -172,25 +177,24 @@ class KeyMouse:
         self.screen = self.disp.screen()
         self.held_dirs = set()       # subset of up/down/left/right
         self.held_start = None       # time the current direction started
-        self.fast_keys = set()     # shift keys currently held
-        self.slow_keys = set()     # alt keys currently held
-        self.scroll_dirs = set()   # scroll_up / scroll_down held
+        self.fast_keys = set()       # shift keys currently held
+        self.slow_keys = set()       # alt keys currently held
+        self.scroll_dirs = set()     # scroll_up / scroll_down held
         self.pressed_clicks = set()  # click keys currently down (anti-repeat)
         self.active = False          # modifier held => keyboard grabbed
         self.left_down = False
+        self.drag_down = False
         self.last_scroll = 0.0
         self.stop = threading.Event()
         self._init_xtest()
         self.keycodes = {}
-        for name, sym in [("modifier", cfg["modifier"])] + list(hijacked_keys(cfg).items()):
+        for name, sym in [("modifier", cfg["modifier"])] + list(_hijacked_keys(cfg).items()):
             kc = self.disp.keysym_to_keycode(XK.string_to_keysym(sym))
             if not kc:
                 print(f"keymouse: WARNING: no keycode for keysym {sym!r} "
                       f"({name}), that key will not work", file=sys.stderr)
             self.keycodes[name] = kc
         if not self.keycodes.get("modifier"):
-            # Was a silent no-op before: the daemon ran but could never
-            # activate. Fail loudly instead.
             raise SystemExit(
                 f"keymouse: ERROR: modifier keysym "
                 f"{cfg['modifier']!r} has no keycode on this keyboard; "
@@ -287,9 +291,9 @@ class KeyMouse:
             else:
                 self.slow_keys.discard(name)
         elif name == "left_click":
-            # Left button: hold to drag, tap to click. X auto-repeat
-            # sends extra KeyPress events while held; ignore them, or
-            # the button gets pressed again and again mid-drag.
+            # Left button: tap to click, hold to drag.
+            # X auto-repeat sends extra KeyPress events while held;
+            # ignore them, or the button gets pressed again and again mid-drag.
             if is_press and name not in self.pressed_clicks:
                 self.pressed_clicks.add(name)
                 self.left_down = True
@@ -297,6 +301,17 @@ class KeyMouse:
             elif not is_press:
                 self.pressed_clicks.discard(name)
                 self.left_down = False
+                self.click(1, False)
+        elif name == "drag":
+            # Dedicated drag key: hold to drag, tap to click (no drag).
+            # This prevents accidental file opens when trying to drag.
+            if is_press and name not in self.pressed_clicks:
+                self.pressed_clicks.add(name)
+                self.drag_down = True
+                self.click(1, True)
+            elif not is_press:
+                self.pressed_clicks.discard(name)
+                self.drag_down = False
                 self.click(1, False)
         elif name in ("right_click", "middle_click"):
             # Same anti-repeat: one tap = one click, even if X repeats.
@@ -342,6 +357,9 @@ class KeyMouse:
         if self.left_down:  # safety: never leave a drag stuck down
             self.click(1, False)
             self.left_down = False
+        if self.drag_down:
+            self.click(1, False)
+            self.drag_down = False
         self.held_dirs = set()
         self.fast_keys = set()
         self.slow_keys = set()

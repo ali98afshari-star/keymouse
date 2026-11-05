@@ -1,345 +1,339 @@
 #!/usr/bin/env python3
-"""KeyMouse settings — a small modern settings window (tkinter, stdlib).
+"""keymouse-settings — Modern Dark UI for KeyMouse settings.
 
-Change the hold-key, the click keys, and the three speeds, then press
-«اعمال و ری‌استارت» — the GUI writes ~/.config/keymouse/config.ini
-and restarts the daemon, so the new settings take effect at once.
-
-Run:  keymouse-settings        (after install)
-  or:  python3 keymouse_gui.py  (from the source folder)
+Clean, high-contrast dark theme with consistent modern layout.
 """
+import configparser
 import os
-import shutil
-import signal
 import subprocess
 import sys
-import time
 import tkinter as tk
-from tkinter import messagebox, ttk
-
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import keymouse  # noqa: E402  (the daemon module, for load/save_config)
+from tkinter import ttk
 
 CONFIG_PATH = os.path.expanduser("~/.config/keymouse/config.ini")
-LAUNCHER = os.path.expanduser("~/.local/bin/keymouse")
-AUTOSTART = os.path.expanduser("~/.config/autostart/keymouse.desktop")
 
-BG = "#1e222b"
-PANEL = "#282d38"
-FG = "#e8eaf0"
-MUTED = "#9aa3b2"
-ACCENT = "#2dd4bf"
-ACCENT_DARK = "#0f766e"
-DANGER = "#f87171"
-OK = "#4ade80"
-
+# Modifier choices: (English label, keysym name)
 MODIFIERS = [
-    ("Ctrl راست — Right Ctrl", "Control_R"),
-    ("Ctrl چپ — Left Ctrl", "Control_L"),
+    ("Right Control (recommended)", "Control_R"),
     ("Caps Lock", "Caps_Lock"),
-    ("Alt راست — Right Alt", "Alt_R"),
-    ("Super راست — Right Super", "Super_R"),
-    ("Super چپ — Left Super", "Super_L"),
+    ("Left Control", "Control_L"),
+    ("Right Alt / AltGr", "Alt_R"),
+    ("Left Super / Win", "Super_L"),
+    ("Right Super", "Super_R"),
 ]
+
+# Click/action key choices: (English label, keysym name)
 CLICK_KEYS = [
     ("Enter", "Return"),
-    ("Space — فاصله", "space"),
-    ("و (comma) ,", "comma"),
-    ("نقطه (period) .", "period"),
-    ("اسلش (slash) /", "slash"),
-    ("نقطه‌ویرگول (semicolon) ;", "semicolon"),
-    ("Enter نام‌پد", "KP_Enter"),
-    ("Backspace", "BackSpace"),
+    ("Space", "space"),
+    (". (period)", "period"),
+    ("/ (slash)", "slash"),
+    ("f", "f"),
+    ("d", "d"),
+    ("v", "v"),
+    ("c", "c"),
 ]
+
+DRAG_KEYS = [
+    ("(Same as Left Click)", ""),
+    ("d", "d"),
+    ("Space", "space"),
+    ("v", "v"),
+    ("c", "c"),
+    ("Alt", "Alt_L"),
+]
+
+# Ultra-modern dark palette
+THEME = {
+    "bg": "#0f172a",          # Deep slate background
+    "card": "#1e293b",        # Card background
+    "card_border": "#334155", # Card border
+    "fg": "#f8fafc",          # Primary text
+    "fg_dim": "#94a3b8",      # Secondary text
+    "accent": "#38bdf8",      # Sky blue accent
+    "accent_hover": "#0284c7",
+    "success": "#10b981",     # Emerald green
+    "danger": "#ef4444",      # Rose red
+    "input_bg": "#0f172a",    # Dark input field
+    "font_family": "Segoe UI, Cantarell, Ubuntu, sans-serif",
+}
 
 
 def daemon_running():
-    try:
-        out = subprocess.run(["pgrep", "-f", r"keymouse\.py$"],
-                             capture_output=True, text=True, timeout=5)
-        return bool(out.stdout.strip())
-    except Exception:
-        return False
-
-
-def daemon_stop():
-    try:
-        out = subprocess.run(["pgrep", "-f", r"keymouse\.py$"],
-                             capture_output=True, text=True, timeout=5)
-        for pid in out.stdout.split():
-            try:
-                os.kill(int(pid), signal.SIGTERM)
-            except (ValueError, ProcessLookupError, PermissionError):
-                pass
-    except Exception:
-        pass
-    for _ in range(20):
-        if not daemon_running():
-            return
-        time.sleep(0.1)
-
-
-def daemon_start():
-    here = os.path.dirname(os.path.abspath(__file__))
-    candidates = [LAUNCHER, "/usr/local/bin/keymouse",
-                  os.path.join(here, "keymouse.py")]
-    cmd = None
-    for cand in candidates:
-        if os.path.exists(cand):
-            cmd = [cand] if not cand.endswith(".py") else [sys.executable, cand]
-            break
-    if cmd is None:
-        cmd = [LAUNCHER]
-    log = os.path.expanduser("~/.local/share/keymouse/keymouse.log")
-    os.makedirs(os.path.dirname(log), exist_ok=True)
-    with open(log, "ab") as fh:
-        subprocess.Popen(cmd, stdout=fh, stderr=fh,
-                         start_new_session=True)
+    out = subprocess.run(["pgrep", "-f", "keymouse.py$"],
+                         capture_output=True).stdout
+    return bool(out.strip())
 
 
 def autostart_enabled():
-    return os.path.exists(AUTOSTART)
+    path = os.path.expanduser("~/.config/autostart/keymouse.desktop")
+    return os.path.exists(path)
 
 
-def set_autostart(enabled):
-    os.makedirs(os.path.dirname(AUTOSTART), exist_ok=True)
-    if enabled:
-        exe = LAUNCHER if os.path.exists(LAUNCHER) else "/usr/local/bin/keymouse"
-        with open(AUTOSTART, "w") as fh:
-            fh.write("[Desktop Entry]\nType=Application\nName=KeyMouse\n"
-                     "Comment=Hold a key and move the mouse with arrows\n"
-                     f"Exec={exe}\nTerminal=false\n"
-                     "X-XFCE-Autostart-enabled=true\n")
-    elif os.path.exists(AUTOSTART):
-        os.remove(AUTOSTART)
+def set_autostart(enable):
+    path = os.path.expanduser("~/.config/autostart/keymouse.desktop")
+    if enable:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        exe = os.path.expanduser("~/.local/bin/keymouse")
+        content = f"""[Desktop Entry]
+Type=Application
+Name=KeyMouse
+Comment=Control mouse with keyboard
+Exec={exe}
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+"""
+        with open(path, "w") as fh:
+            fh.write(content)
+    else:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
-class Settings(tk.Tk):
+class ModernSettings(tk.Tk):
     def __init__(self):
         super().__init__()
-        self.title("KeyMouse — تنظیمات")
-        self.geometry("540x720")
-        self.configure(bg=BG)
-        self.cfg = keymouse.load_config(CONFIG_PATH)
-        self._build_style()
-        self._build()
+        self.title("KeyMouse Settings")
+        self.geometry("540x680")
+        self.minsize(500, 620)
+        self.configure(bg=THEME["bg"])
+        
+        self._load_config()
+        self._setup_styles()
+        self._build_ui()
         self._refresh_status()
-        self.after(2000, self._tick)
 
-    # -- look -----------------------------------------------------------
-    def _build_style(self):
+    def _setup_styles(self):
         style = ttk.Style(self)
-        try:
-            style.theme_use("clam")
-        except tk.TclError:
-            pass
-        style.configure("TFrame", background=BG)
-        style.configure("Card.TFrame", background=PANEL)
-        style.configure("TLabel", background=BG, foreground=FG,
-                        font=("Sans", 11))
-        style.configure("Card.TLabel", background=PANEL, foreground=FG,
-                        font=("Sans", 11))
-        style.configure("Muted.TLabel", background=BG, foreground=MUTED,
-                        font=("Sans", 10))
-        style.configure("Card.Muted.TLabel", background=PANEL,
-                        foreground=MUTED, font=("Sans", 10))
-        style.configure("Title.TLabel", background=BG, foreground=FG,
-                        font=("Sans", 16, "bold"))
-        style.configure("Section.TLabel", background=PANEL, foreground=ACCENT,
-                        font=("Sans", 12, "bold"))
-        style.configure("TButton", font=("Sans", 11), padding=8)
-        style.configure("Accent.TButton", background=ACCENT,
-                        foreground="#06251f", font=("Sans", 11, "bold"))
-        style.configure("TCombobox", font=("Sans", 11), padding=6)
-        style.configure("TCheckbutton", background=BG, foreground=FG,
-                        font=("Sans", 11))
+        style.theme_use("clam")
+        
+        # Configure TTK widgets
+        style.configure("TFrame", background=THEME["bg"])
+        style.configure("Card.TFrame", background=THEME["card"], relief="solid", borderwidth=1)
+        
+        style.configure("TLabel", background=THEME["card"], foreground=THEME["fg"],
+                        font=(THEME["font_family"], 10))
+        style.configure("Title.TLabel", background=THEME["bg"], foreground=THEME["fg"],
+                        font=(THEME["font_family"], 16, "bold"))
+        style.configure("Subtitle.TLabel", background=THEME["bg"], foreground=THEME["fg_dim"],
+                        font=(THEME["font_family"], 10))
+        style.configure("Header.TLabel", background=THEME["card"], foreground=THEME["accent"],
+                        font=(THEME["font_family"], 11, "bold"))
+        style.configure("Dim.TLabel", background=THEME["card"], foreground=THEME["fg_dim"],
+                        font=(THEME["font_family"], 9))
+        
+        style.configure("TMenubutton", background=THEME["input_bg"], foreground=THEME["fg"],
+                        arrowcolor=THEME["accent"], relief="flat", padding=6)
+        style.map("TMenubutton", background=[("active", THEME["card_border"])])
+        
+        style.configure("Horizontal.TScale", background=THEME["card"], troughcolor=THEME["input_bg"],
+                        sliderrelief="flat")
 
-    def _card(self, parent, title):
-        frame = ttk.Frame(parent, style="Card.TFrame", padding=14)
-        frame.pack(fill="x", padx=14, pady=8)
-        ttk.Label(frame, text=title, style="Section.TLabel").pack(anchor="w")
-        return frame
+    def _load_config(self):
+        import keymouse
+        self.cfg = keymouse.load_config(CONFIG_PATH)
 
-    def _slider(self, parent, label, from_, to, key, fmt="{:.0f}", step=1):
+    def _build_ui(self):
+        # Main layout container
+        main = ttk.Frame(self, padding=20)
+        main.pack(fill="both", expand=True)
+
+        # Header Title
+        title_box = ttk.Frame(main)
+        title_box.pack(fill="x", pady=(0, 16))
+        
+        ttk.Label(title_box, text="KeyMouse Configuration", style="Title.TLabel").pack(anchor="w")
+        ttk.Label(title_box, text="Control pointer using keyboard shortcuts with speed ramping",
+                  style="Subtitle.TLabel").pack(anchor="w", pady=(2, 0))
+
+        # Card 1: Key Bindings
+        c1 = self._create_card(main, "Key Bindings")
+        
+        # Modifier Key
+        f_mod = ttk.Frame(c1, style="Card.TFrame")
+        f_mod.pack(fill="x", pady=4)
+        ttk.Label(f_mod, text="Hold Key (Modifier):").pack(side="left")
+        
+        self.mod_var = tk.StringVar()
+        for label, sym in MODIFIERS:
+            if sym == self.cfg["modifier"]:
+                self.mod_var.set(label)
+                break
+        else:
+            self.mod_var.set(self.cfg["modifier"])
+            
+        mod_menu = ttk.OptionMenu(f_mod, self.mod_var, self.mod_var.get(),
+                                  *[l for l, _ in MODIFIERS])
+        mod_menu.pack(side="right")
+
+        # Left / Right Click keys
+        self.left_var = self._create_combo_row(c1, "Left Click / Tap:", self.cfg["left_click_key"], CLICK_KEYS)
+        self.right_var = self._create_combo_row(c1, "Right Click:", self.cfg["right_click_key"], CLICK_KEYS)
+        
+        # Drag Key
+        self.drag_var = self._create_combo_row(c1, "Dedicated Drag Key:", self.cfg.get("drag_key", ""), DRAG_KEYS)
+        ttk.Label(c1, text="Separate drag key prevents accidental file opens when dragging", 
+                  style="Dim.TLabel").pack(anchor="w", pady=(0, 4))
+
+        # Card 2: Speed & Response
+        c2 = self._create_card(main, "Speed & Responsiveness")
+        
+        self.speed_slider, self.speed_val = self._create_slider(
+            c2, "Base Speed (px/tick):", self.cfg["base_speed"], 1, 30, "%d px")
+        self.fast_slider, self.fast_val = self._create_slider(
+            c2, "Fast Multiplier (+Shift):", self.cfg["fast_multiplier"], 1.5, 5.0, "%.1fx")
+        self.accel_slider, self.accel_val = self._create_slider(
+            c2, "Acceleration Rate:", self.cfg["accel_per_sec"], 20, 250, "%d px/s²")
+
+        # Card 3: Daemon & System Status
+        c3 = self._create_card(main, "Daemon Control & Startup")
+        
+        status_box = ttk.Frame(c3, style="Card.TFrame")
+        status_box.pack(fill="x", pady=4)
+        ttk.Label(status_box, text="Current State:").pack(side="left")
+        self.lbl_status = ttk.Label(status_box, text="Checking...", font=(THEME["font_family"], 10, "bold"))
+        self.lbl_status.pack(side="left", padx=8)
+
+        # Autostart checkbox
+        self.auto_var = tk.BooleanVar(value=autostart_enabled())
+        chk = tk.Checkbutton(c3, text="Start automatically on login", variable=self.auto_var,
+                             bg=THEME["card"], fg=THEME["fg"], activebackground=THEME["card"],
+                             activeforeground=THEME["accent"], selectcolor=THEME["input_bg"],
+                             highlightthickness=0, font=(THEME["font_family"], 10))
+        chk.pack(anchor="w", pady=4)
+
+        # Action Buttons Bottom
+        btn_bar = ttk.Frame(main)
+        btn_bar.pack(fill="x", side="bottom", pady=(16, 0))
+
+        btn_save = tk.Button(btn_bar, text="Save & Apply", bg=THEME["accent"], fg="#0f172a",
+                             activebackground=THEME["accent_hover"], activeforeground="#ffffff",
+                             relief="flat", font=(THEME["font_family"], 10, "bold"),
+                             padx=16, pady=6, cursor="hand2", command=self._on_save)
+        btn_save.pack(side="right", padx=(8, 0))
+
+        btn_toggle = tk.Button(btn_bar, text="Restart Daemon", bg=THEME["card"], fg=THEME["fg"],
+                               activebackground=THEME["card_border"], activeforeground=THEME["fg"],
+                               relief="flat", font=(THEME["font_family"], 10),
+                               padx=12, pady=6, cursor="hand2", command=self._restart_daemon)
+        btn_toggle.pack(side="right")
+
+    def _create_card(self, parent, title):
+        card = ttk.Frame(parent, style="Card.TFrame", padding=14)
+        card.pack(fill="x", pady=(0, 12))
+        ttk.Label(card, text=title, style="Header.TLabel").pack(anchor="w", pady=(0, 8))
+        return card
+
+    def _create_combo_row(self, parent, label_text, current_val, choices):
         row = ttk.Frame(parent, style="Card.TFrame")
         row.pack(fill="x", pady=4)
-        ttk.Label(row, text=label, style="Card.TLabel").pack(side="left")
-        val = ttk.Label(row, text="", style="Card.TLabel")
-        val.pack(side="right")
-        var = tk.DoubleVar(value=float(self.cfg[key]))
-        # resolution=step is essential: tk.Scale defaults to resolution
-        # 1, which rounded the 0.25 slow multiplier down to 0.0.
-        scale = tk.Scale(parent, variable=var, from_=from_, to=to,
-                         orient="horizontal", showvalue=False,
-                         resolution=step,
-                         bg=PANEL, fg=FG, troughcolor="#3a4152",
-                         highlightthickness=0, activebackground=ACCENT,
-                         length=440)
-        scale.pack(fill="x", pady=(0, 2))
-
-        def _update(*_):
-            v = var.get()
-            if step == 1:
-                v = round(v)
-            val.config(text=fmt.format(v))
-            self.cfg[key] = v if step != 1 else int(v)
-            self._update_speed_preview()
-
-        var.trace_add("write", _update)
-        _update()
+        ttk.Label(row, text=label_text).pack(side="left")
+        
+        var = tk.StringVar()
+        for label, sym in choices:
+            if sym == current_val:
+                var.set(label)
+                break
+        else:
+            var.set(current_val if current_val else choices[0][0])
+            
+        opt = ttk.OptionMenu(row, var, var.get(), *[l for l, _ in choices])
+        opt.pack(side="right")
         return var
 
-    # -- layout ---------------------------------------------------------
-    def _build(self):
-        root = ttk.Frame(self, padding=6)
-        root.pack(fill="both", expand=True)
-        ttk.Label(root, text="KeyMouse", style="Title.TLabel").pack(anchor="w", padx=14)
-        ttk.Label(root, text="موس با کیبورد — نگه دار و با جهت‌ها حرکت بده",
-                  style="Muted.TLabel").pack(anchor="w", padx=14, pady=(0, 4))
+    def _create_slider(self, parent, label_text, default_val, min_val, max_val, fmt):
+        row = ttk.Frame(parent, style="Card.TFrame")
+        row.pack(fill="x", pady=4)
+        
+        lbl = ttk.Label(row, text=label_text)
+        lbl.pack(side="left")
+        
+        val_lbl = ttk.Label(row, text=fmt % default_val, style="Dim.TLabel")
+        val_lbl.pack(side="right", padx=(8, 0))
+        
+        def update_val(v):
+            val_lbl.config(text=fmt % float(v))
 
-        # status card
-        card = self._card(root, "وضعیت")
-        row = ttk.Frame(card, style="Card.TFrame")
-        row.pack(fill="x")
-        self.status_dot = ttk.Label(row, text="●", style="Card.TLabel",
-                                    foreground=MUTED)
-        self.status_dot.pack(side="left")
-        self.status_text = ttk.Label(row, text="…", style="Card.TLabel")
-        self.status_text.pack(side="left", padx=6)
-        ttk.Button(row, text="توقف", command=self._on_stop).pack(side="right", padx=4)
-        ttk.Button(row, text="شروع", command=self._on_start).pack(side="right")
-        self.autostart_var = tk.BooleanVar(value=autostart_enabled())
-        ttk.Checkbutton(card, text="با ورود به سیستم خودکار شروع شود (Autostart)",
-                        variable=self.autostart_var,
-                        command=self._on_autostart,
-                        style="TCheckbutton").pack(anchor="w", pady=(8, 0))
-
-        # hold key + clicks
-        card = self._card(root, "دکمه‌ها — Keybinding")
-        ttk.Label(card, text="دکمه‌ای که نگه می‌داری:", style="Card.TLabel").pack(anchor="w")
-        self.mod_var = tk.StringVar(value=self._label_for(MODIFIERS, self.cfg["modifier"]))
-        ttk.Combobox(card, textvariable=self.mod_var,
-                     values=[label for label, _ in MODIFIERS],
-                     state="readonly").pack(fill="x", pady=4)
-        for label, key in (("کلیک چپ:", "left_click_key"),
-                           ("کلیک راست:", "right_click_key"),
-                           ("کلیک وسط:", "middle_click_key")):
-            ttk.Label(card, text=label, style="Card.TLabel").pack(anchor="w", pady=(6, 0))
-            var = tk.StringVar(value=self._label_for(CLICK_KEYS, self.cfg[key]))
-            setattr(self, f"{key}_var", var)
-            ttk.Combobox(card, textvariable=var,
-                         values=[l for l, _ in CLICK_KEYS],
-                         state="readonly").pack(fill="x", pady=4)
-
-        # speeds
-        card = self._card(root, "سرعت پوینتر")
-        ttk.Label(card, text="معمولی — فقط دکمه‌ی نگه‌دارنده (Ctrl):",
-                  style="Card.TLabel").pack(anchor="w")
-        self._slider(card, "سرعت شروع (px در هر تیک)", 1, 20, "base_speed")
-        self._slider(card, "حداکثر سرعت (px در هر تیک)", 10, 100, "max_speed")
-        self._slider(card, "شتاب (px در ثانیه)", 0, 200, "accel_per_sec", step=5)
-        ttk.Label(card, text="سریع — دکمه + Shift:",
-                  style="Card.TLabel").pack(anchor="w", pady=(10, 0))
-        self._slider(card, "ضریب سرعت سریع", 1, 5, "fast_multiplier",
-                     fmt="×{:.1f}", step=0.1)
-        ttk.Label(card, text="دقیق — دکمه + Alt:",
-                  style="Card.TLabel").pack(anchor="w", pady=(10, 0))
-        self._slider(card, "ضریب سرعت دقیق", 0.05, 1, "slow_multiplier",
-                     fmt="×{:.2f}", step=0.05)
-        self.preview = ttk.Label(card, text="", style="Card.Muted.TLabel")
-        self.preview.pack(anchor="w", pady=(8, 0))
-        self._update_speed_preview()
-
-        # actions
-        row = ttk.Frame(root)
-        row.pack(fill="x", padx=14, pady=12)
-        ttk.Button(row, text="اعمال و ری‌استارت", style="Accent.TButton",
-                   command=self._on_apply).pack(side="right", fill="x", expand=True)
-        ttk.Button(row, text="بازنشانی", command=self._on_reset).pack(side="left", padx=6)
-
-    def _label_for(self, options, keysym):
-        for label, value in options:
-            if value == keysym:
-                return label
-        return options[0][0]
-
-    def _keysym_for(self, options, label):
-        for text, value in options:
-            if text == label:
-                return value
-        return options[0][1]
-
-    def _update_speed_preview(self):
-        # Sliders are built before the preview label exists; skip until then.
-        if not hasattr(self, "preview"):
-            return
-        tick = self.cfg["tick_ms"] / 1000.0
-        normal = self.cfg["max_speed"] / tick
-        fast = normal * self.cfg["fast_multiplier"]
-        slow = normal * self.cfg["slow_multiplier"]
-        self.preview.config(
-            text=f"حداکثر سرعت: معمولی {normal:.0f} پیکسل/ثانیه  •  "
-                 f"سریع {fast:.0f}  •  دقیق {slow:.0f}")
-
-    def _collect(self):
-        self.cfg["modifier"] = self._keysym_for(MODIFIERS, self.mod_var.get())
-        for key in ("left_click_key", "right_click_key", "middle_click_key"):
-            var = getattr(self, f"{key}_var")
-            self.cfg[key] = self._keysym_for(CLICK_KEYS, var.get())
-        return dict(self.cfg)
-
-    def _on_apply(self):
-        values = self._collect()
-        try:
-            keymouse.save_config(CONFIG_PATH, values)
-        except OSError as exc:
-            messagebox.showerror("خطا", f"ذخیره‌ی تنظیمات نشد:\n{exc}")
-            return
-        daemon_stop()
-        daemon_start()
-        time.sleep(0.6)
-        self._refresh_status()
-        if daemon_running():
-            messagebox.showinfo("KeyMouse", "تنظیمات اعمال شد و دیمون دوباره شروع شد.")
-        else:
-            messagebox.showwarning(
-                "KeyMouse",
-                "تنظیمات ذخیره شد ولی دیمون شروع نشد.\n"
-                "لاگ را ببین: ~/.local/share/keymouse/keymouse.log")
-
-    def _on_reset(self):
-        self.cfg = keymouse.load_config(None)
-        for widget in self.winfo_children():
-            widget.destroy()
-        self._build()
-        self._refresh_status()
-
-    def _on_start(self):
-        daemon_start()
-        time.sleep(0.5)
-        self._refresh_status()
-
-    def _on_stop(self):
-        daemon_stop()
-        self._refresh_status()
-
-    def _on_autostart(self):
-        set_autostart(self.autostart_var.get())
+        slider = ttk.Scale(row, from_=min_val, to=max_val, value=default_val,
+                           command=update_val)
+        slider.pack(side="right", fill="x", expand=True, padx=8)
+        return slider, val_lbl
 
     def _refresh_status(self):
-        running = daemon_running()
-        self.status_dot.config(foreground=OK if running else DANGER)
-        self.status_text.config(
-            text="در حال اجراست — آماده‌ی حرکت با کیبورد" if running
-            else "متوقف است — دکمه‌ی شروع را بزن")
+        if daemon_running():
+            self.lbl_status.config(text="Active / Running", foreground=THEME["success"])
+        else:
+            self.lbl_status.config(text="Stopped", foreground=THEME["danger"])
+        self.after(3000, self._refresh_status)
 
-    def _tick(self):
-        self._refresh_status()
-        self.after(2000, self._tick)
+    def _restart_daemon(self):
+        import keymouse
+        subprocess.run(["pkill", "-f", "keymouse.py$"])
+        exe = os.path.expanduser("~/.local/bin/keymouse")
+        subprocess.Popen([exe], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.after(500, self._refresh_status)
+
+    def _collect(self):
+        # Resolve modifier
+        mod_label = self.mod_var.get()
+        mod_sym = "Control_R"
+        for l, s in MODIFIERS:
+            if l == mod_label:
+                mod_sym = s
+                break
+
+        # Resolve Left Click
+        left_label = self.left_var.get()
+        left_sym = "Return"
+        for l, s in CLICK_KEYS:
+            if l == left_label:
+                left_sym = s
+                break
+
+        # Resolve Right Click
+        right_label = self.right_var.get()
+        right_sym = "period"
+        for l, s in CLICK_KEYS:
+            if l == right_label:
+                right_sym = s
+                break
+
+        # Resolve Drag Key
+        drag_label = self.drag_var.get()
+        drag_sym = ""
+        for l, s in DRAG_KEYS:
+            if l == drag_label:
+                drag_sym = s
+                break
+
+        return {
+            "modifier": mod_sym,
+            "base_speed": int(round(self.speed_slider.get())),
+            "max_speed": self.cfg.get("max_speed", 42),
+            "accel_per_sec": int(round(self.accel_slider.get())),
+            "tick_ms": self.cfg.get("tick_ms", 16),
+            "fast_multiplier": round(self.fast_slider.get(), 1),
+            "slow_multiplier": self.cfg.get("slow_multiplier", 0.25),
+            "scroll_ms": self.cfg.get("scroll_ms", 120),
+            "left_click_key": left_sym,
+            "right_click_key": right_sym,
+            "middle_click_key": self.cfg.get("middle_click_key", "slash"),
+            "drag_key": drag_sym,
+        }
+
+    def _on_save(self):
+        import keymouse
+        values = self._collect()
+        keymouse.save_config(CONFIG_PATH, values)
+        set_autostart(self.auto_var.get())
+        self._restart_daemon()
 
 
 def main():
-    app = Settings()
+    app = ModernSettings()
     app.mainloop()
     return 0
 

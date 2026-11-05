@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=KeyMouse Settings
+Comment=Hold a key and move the mouse with the arrow keys — settings
+Exec=keymouse-settings
+Terminal=false
+Categories=Utility;Settings;

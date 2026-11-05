@@ -1,0 +1,7 @@
+[Desktop Entry]
+Type=Application
+Name=KeyMouse
+Comment=Hold Right Ctrl and move the mouse with the arrow keys
+Exec=keymouse
+Terminal=false
+X-XFCE-Autostart-enabled=true

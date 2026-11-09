@@ -1,0 +1,203 @@
+//! X11 keysym name <-> value table.
+//!
+//! Covers the keys a keymouse user would plausibly bind: modifiers,
+//! arrows, navigation, punctuation, letters, digits, function keys and
+//! the keypad. Values are the standard X11 keysym numbers.
+
+/// (name, keysym value), sorted by name for readability.
+pub const KEYSYMS: &[(&str, u32)] = &[
+    ("0", 0x0030),
+    ("1", 0x0031),
+    ("2", 0x0032),
+    ("3", 0x0033),
+    ("4", 0x0034),
+    ("5", 0x0035),
+    ("6", 0x0036),
+    ("7", 0x0037),
+    ("8", 0x0038),
+    ("9", 0x0039),
+    ("A", 0x0041),
+    ("Alt_L", 0xFFE9),
+    ("Alt_R", 0xFFEA),
+    ("B", 0x0042),
+    ("BackSpace", 0xFF08),
+    ("C", 0x0043),
+    ("Caps_Lock", 0xFFE5),
+    ("Control_L", 0xFFE3),
+    ("Control_R", 0xFFE4),
+    ("D", 0x0044),
+    ("Delete", 0xFFFF),
+    ("Down", 0xFF54),
+    ("E", 0x0045),
+    ("End", 0xFF57),
+    ("Escape", 0xFF1B),
+    ("F", 0x0046),
+    ("F1", 0xFFBE),
+    ("F10", 0xFFC7),
+    ("F11", 0xFFC8),
+    ("F12", 0xFFC9),
+    ("F2", 0xFFBF),
+    ("F3", 0xFFC0),
+    ("F4", 0xFFC1),
+    ("F5", 0xFFC2),
+    ("F6", 0xFFC3),
+    ("F7", 0xFFC4),
+    ("F8", 0xFFC5),
+    ("F9", 0xFFC6),
+    ("G", 0x0047),
+    ("H", 0x0048),
+    ("Home", 0xFF50),
+    ("I", 0x0049),
+    ("Insert", 0xFF63),
+    ("J", 0x004A),
+    ("K", 0x004B),
+    ("KP_0", 0xFFB0),
+    ("KP_1", 0xFFB1),
+    ("KP_2", 0xFFB2),
+    ("KP_3", 0xFFB3),
+    ("KP_4", 0xFFB4),
+    ("KP_5", 0xFFB5),
+    ("KP_6", 0xFFB6),
+    ("KP_7", 0xFFB7),
+    ("KP_8", 0xFFB8),
+    ("KP_9", 0xFFB9),
+    ("KP_Add", 0xFFAB),
+    ("KP_Decimal", 0xFFAE),
+    ("KP_Divide", 0xFFAF),
+    ("KP_Enter", 0xFF8D),
+    ("KP_Multiply", 0xFFAA),
+    ("KP_Subtract", 0xFFAD),
+    ("L", 0x004C),
+    ("Left", 0xFF51),
+    ("M", 0x004D),
+    ("Menu", 0xFF67),
+    ("Meta_L", 0xFFE7),
+    ("Meta_R", 0xFFE8),
+    ("N", 0x004E),
+    ("Next", 0xFF56),
+    ("Num_Lock", 0xFF7F),
+    ("O", 0x004F),
+    ("P", 0x0050),
+    ("Page_Down", 0xFF56),
+    ("Page_Up", 0xFF55),
+    ("Pause", 0xFF13),
+    ("Prior", 0xFF55),
+    ("Q", 0x0051),
+    ("R", 0x0052),
+    ("Return", 0xFF0D),
+    ("Right", 0xFF53),
+    ("S", 0x0053),
+    ("Scroll_Lock", 0xFF14),
+    ("Shift_L", 0xFFE1),
+    ("Shift_R", 0xFFE2),
+    ("Super_L", 0xFFEB),
+    ("Super_R", 0xFFEC),
+    ("T", 0x0054),
+    ("Tab", 0xFF09),
+    ("U", 0x0055),
+    ("Up", 0xFF52),
+    ("V", 0x0056),
+    ("W", 0x0057),
+    ("X", 0x0058),
+    ("Y", 0x0059),
+    ("Z", 0x005A),
+    ("a", 0x0061),
+    ("apostrophe", 0x0027),
+    ("b", 0x0062),
+    ("backslash", 0x005C),
+    ("bracketleft", 0x005B),
+    ("bracketright", 0x005D),
+    ("c", 0x0063),
+    ("comma", 0x002C),
+    ("d", 0x0064),
+    ("e", 0x0065),
+    ("equal", 0x003D),
+    ("f", 0x0066),
+    ("g", 0x0067),
+    ("grave", 0x0060),
+    ("h", 0x0068),
+    ("i", 0x0069),
+    ("j", 0x006A),
+    ("k", 0x006B),
+    ("l", 0x006C),
+    ("m", 0x006D),
+    ("minus", 0x002D),
+    ("n", 0x006E),
+    ("o", 0x006F),
+    ("p", 0x0070),
+    ("period", 0x002E),
+    ("q", 0x0071),
+    ("r", 0x0072),
+    ("s", 0x0073),
+    ("semicolon", 0x003B),
+    ("slash", 0x002F),
+    ("space", 0x0020),
+    ("t", 0x0074),
+    ("u", 0x0075),
+    ("v", 0x0076),
+    ("w", 0x0077),
+    ("x", 0x0078),
+    ("y", 0x0079),
+    ("z", 0x007A),
+];
+
+/// Look up a keysym value by its X11 name (e.g. "Control_R").
+/// Accepts the common aliases Page_Up/Page_Down as well.
+pub fn keysym_from_name(name: &str) -> Option<u32> {
+    KEYSYMS
+        .iter()
+        .find(|(n, _)| *n == name)
+        .map(|(_, v)| *v)
+}
+
+/// Look up a keysym name by value. Returns the first (canonical) name.
+pub fn name_from_keysym(value: u32) -> Option<&'static str> {
+    KEYSYMS
+        .iter()
+        .find(|(_, v)| *v == value)
+        .map(|(n, _)| *n)
+}
+
+/// The mirror of a left/right key: Shift_L <-> Shift_R, Control_L <->
+/// Control_R, Alt_L <-> Alt_R, Super_L <-> Super_R, Meta_L <-> Meta_R.
+/// Returns None for keys without a mirror.
+pub fn mirror_keysym(name: &str) -> Option<&'static str> {
+    match name {
+        "Shift_L" => Some("Shift_R"),
+        "Shift_R" => Some("Shift_L"),
+        "Control_L" => Some("Control_R"),
+        "Control_R" => Some("Control_L"),
+        "Alt_L" => Some("Alt_R"),
+        "Alt_R" => Some("Alt_L"),
+        "Super_L" => Some("Super_R"),
+        "Super_R" => Some("Super_L"),
+        "Meta_L" => Some("Meta_R"),
+        "Meta_R" => Some("Meta_L"),
+        _ => None,
+    }
+}
+
+/// A short, human-friendly label for a keysym name (used in the GUI).
+pub fn display_name(name: &str) -> String {
+    match name {
+        "Control_R" => "Ctrl راست".to_string(),
+        "Control_L" => "Ctrl چپ".to_string(),
+        "Shift_L" => "Shift چپ".to_string(),
+        "Shift_R" => "Shift راست".to_string(),
+        "Alt_L" => "Alt چپ".to_string(),
+        "Alt_R" => "Alt راست".to_string(),
+        "Super_L" => "Super چپ".to_string(),
+        "Super_R" => "Super راست".to_string(),
+        "Caps_Lock" => "Caps Lock".to_string(),
+        "Return" => "Enter".to_string(),
+        "Escape" => "Esc".to_string(),
+        "Prior" => "PageUp".to_string(),
+        "Next" => "PageDown".to_string(),
+        "space" => "Space".to_string(),
+        "period" => ". (نقطه)".to_string(),
+        "slash" => "/ (اسلش)".to_string(),
+        "comma" => ", (ویرگول)".to_string(),
+        "semicolon" => "; (نقطه‌ویرگول)".to_string(),
+        other => other.to_string(),
+    }
+}

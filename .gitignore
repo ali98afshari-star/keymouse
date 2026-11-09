@@ -3,3 +3,9 @@ __pycache__/
 .venv-test/
 keymouse.log
 keymouse.lock
+# Rust build output + release artifacts (uploaded to GitHub Releases, not git)
+/target/
+keymouse_2.0.0_amd64.deb
+keymouse-2.0.0.tar.gz
+keymouse_*.deb
+keymouse-*.tar.gz

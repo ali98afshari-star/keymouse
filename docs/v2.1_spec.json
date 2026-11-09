@@ -1,0 +1,81 @@
+{
+  "specifications": {
+    "version": "2.1",
+    "release_date": "2026-11-09",
+    "features": [
+      "Enhanced mouse tracking",
+      "Improved keyboard shortcuts",
+      "New UI theme options"
+    ],
+    "compatibility": {
+      "operating_systems": [
+        "Windows 10",
+        "Windows 11",
+        "macOS 12+",
+        "Linux (Ubuntu 20.04+)"
+      ],
+      "hardware": [
+        "Standard USB mice",
+        "Bluetooth mice",
+        "Trackballs"
+      ]
+    }
+  },
+  "release_notes": {
+    "version": "2.1",
+    "date": "2026-11-09",
+    "changes": [
+      {
+        "type": "feature",
+        "description": "Added support for new mouse models"
+      },
+      {
+        "type": "bugfix",
+        "description": "Fixed keyboard shortcut conflicts"
+      },
+      {
+        "type": "improvement",
+        "description": "Improved UI responsiveness"
+      }
+    ]
+  },
+  "configuration": {
+    "version": "2.1",
+    "settings": {
+      "mouse": {
+        "sensitivity": 100,
+        "acceleration": 50,
+        "polling_rate": 1000
+      },
+      "keyboard": {
+        "repeat_rate": 30,
+        "delay": 500
+      },
+      "ui": {
+        "theme": "dark",
+        "language": "en"
+      }
+    }
+  },
+  "ui_tokens": {
+    "version": "2.1",
+    "tokens": {
+      "colors": {
+        "primary": "#3498db",
+        "secondary": "#2ecc71",
+        "background": "#f5f5f5",
+        "text": "#333333"
+      },
+      "typography": {
+        "font_family": "Arial, sans-serif",
+        "font_size": "14px",
+        "line_height": "1.5"
+      },
+      "spacing": {
+        "small": "8px",
+        "medium": "16px",
+        "large": "24px"
+      }
+    }
+  }
+}

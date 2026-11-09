@@ -1,8 +1,16 @@
-# KeyMouse — Keyboard Mouse Controller for Linux / X11
+# KeyMouse v2.5 — Keyboard Mouse Controller for Linux / X11
 
 Hold a single modifier key, steer the cursor with arrow keys. Lightweight, responsive, zero bloated background services.
 
 > 📖 Persian Documentation: [README.fa.md](README.fa.md)
+
+---
+
+## ✨ What's New in v2.5
+
+- **Universal Key Binding:** Bind **ANY** key on any keyboard (F1-F12, Insert, Delete, Home, End, NumLock, Media keys, or custom XKB keys) to the main modifier or any action.
+- **UI/UX Pro Max Design:** Updated egui interface with dynamic version display (`v2.5.0`), live status badges, and refined dark theme.
+- **Fast Hex Fallback:** Full support for custom keysyms and hex fallback for non-standard keyboard layouts.
 
 ---
 

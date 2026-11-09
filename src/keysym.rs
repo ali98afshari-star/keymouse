@@ -141,21 +141,27 @@ pub const KEYSYMS: &[(&str, u32)] = &[
     ("z", 0x007A),
 ];
 
-/// Look up a keysym value by its X11 name (e.g. "Control_R").
+/// Look up a keysym value by its X11 name (e.g. "Control_R") or hex value (e.g. "0xFFE4").
 /// Accepts the common aliases Page_Up/Page_Down as well.
 pub fn keysym_from_name(name: &str) -> Option<u32> {
-    KEYSYMS
-        .iter()
-        .find(|(n, _)| *n == name)
-        .map(|(_, v)| *v)
+    if let Some(n) = KEYSYMS.iter().find(|(n, _)| *n == name).map(|(_, v)| *v) {
+        return Some(n);
+    }
+    if (name.starts_with("0x") || name.starts_with("0X")) && name.len() > 2 {
+        if let Ok(v) = u32::from_str_radix(&name[2..], 16) {
+            return Some(v);
+        }
+    }
+    None
 }
 
-/// Look up a keysym name by value. Returns the first (canonical) name.
-pub fn name_from_keysym(value: u32) -> Option<&'static str> {
-    KEYSYMS
-        .iter()
-        .find(|(_, v)| *v == value)
-        .map(|(n, _)| *n)
+/// Look up a keysym name by value. Returns canonical name or "0xXXXX" hex fallback.
+pub fn name_from_keysym(value: u32) -> String {
+    if let Some((n, _)) = KEYSYMS.iter().find(|(_, v)| *v == value) {
+        n.to_string()
+    } else {
+        format!("0x{:04X}", value)
+    }
 }
 
 /// The mirror of a left/right key: Shift_L <-> Shift_R, Control_L <->
@@ -179,6 +185,9 @@ pub fn mirror_keysym(name: &str) -> Option<&'static str> {
 
 /// A short, human-friendly label for a keysym name (used in the GUI).
 pub fn display_name(name: &str) -> String {
+    if name.starts_with("0x") || name.starts_with("0X") {
+        return format!("کلید ({})", name);
+    }
     match name {
         "Control_R" => "Ctrl راست".to_string(),
         "Control_L" => "Ctrl چپ".to_string(),

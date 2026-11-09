@@ -192,10 +192,8 @@ impl CaptureConn {
             // Escape cancels the capture.
             return Some(Some(String::new()));
         }
-        match name_from_keysym(keysym) {
-            Some(name) => Some(Some(name.to_string())),
-            None => Some(None), // unknown keysym: ignore, keep waiting
-        }
+        let name = name_from_keysym(keysym);
+        Some(Some(name))
     }
 }
 
@@ -398,7 +396,13 @@ impl eframe::App for SettingsApp {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.heading("KeyMouse");
+                ui.horizontal(|ui| {
+                    ui.heading("KeyMouse");
+                    ui.colored_label(
+                        egui::Color32::from_rgb(ACCENT.0, ACCENT.1, ACCENT.2),
+                        egui::RichText::new(format!("v{}", env!("CARGO_PKG_VERSION"))).strong().small(),
+                    );
+                });
                 ui.label("موس با کیبورد — نگه دار و با جهت‌ها حرکت بده");
                 ui.add_space(8.0);
 
@@ -536,7 +540,7 @@ impl eframe::App for SettingsApp {
                 }
                 ui.add_space(8.0);
                 ui.label(
-                    egui::RichText::new("keymouse v2.0 — Rust. Config: ~/.config/keymouse/config.toml")
+                    egui::RichText::new(format!("keymouse v{} — Rust | Config: ~/.config/keymouse/config.toml", env!("CARGO_PKG_VERSION")))
                         .small()
                         .color(egui::Color32::from_rgb(MUTED.0, MUTED.1, MUTED.2)),
                 );
